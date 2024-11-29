@@ -1,9 +1,12 @@
 import sys
 import os
 
+
 from PyQt5.QtCore import Qt, QPoint, QTimer
 from PyQt5.QtGui import QPixmap, QTransform
 from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QMenu
+from threading import Thread
+from Game.snake import start_game, SnakeGame
 
 frame_folder = "D:/pythonGame/Photo/simeiAction/"  # 动画帧路径
 
@@ -78,6 +81,21 @@ class PetApp(QWidget):
         self.idle_timer.timeout.connect(self.update_frame)
         self.idle_timer.start(150)
         print(self.idle_count)
+
+    def launch_snake(self):
+        # 创建线程，防止影响主界面
+        def run_game():
+            start_game()
+        game_thread = Thread(target = run_game)
+        game_thread.start()
+
+
+    def on_snake_game_over(self):
+        """
+        贪吃蛇失败时，桌宠说一句鼓励的话。
+        """
+        self.pet_label.setText("四妹：加油，你可以的！")
+        print("桌宠检测到贪吃蛇游戏失败！")
 
     def set_action(self, action_name, frame_prefix, interval, connection = None, play_count_limit = None):
         # self.timer.stop()
@@ -273,7 +291,7 @@ class PetApp(QWidget):
             "吹吹风": lambda: self.set_action("flow", "simei_flow", 200, connection=self.idle, play_count_limit=2),
             "打瞌睡": lambda: self.set_action("sleepy", "simei_sleepy", 300),
             "学习": lambda: self.set_action("write", "simei_write_", 150),
-
+            "一起来玩贪吃蛇": lambda: self.launch_snake()
         }
         for label, method in actions.items():
             menu.addAction(label).triggered.connect(method)
