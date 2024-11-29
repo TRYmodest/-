@@ -11,20 +11,23 @@ frame_folder = "D:/pythonGame/Photo/simeiAction/"  # 动画帧路径
 class PetApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.sleepy_count = 0
         self.initUI()
         self.frames = self.load_frames(frame_folder, "simei_flush_0")  # 加载帧序列
         self.current_frame_index = 0  # 当前帧索引
         self.flipped = True
         self.play_count = 0
+        self.idle_count = 0
         resized_pixmap = self.frames[self.current_frame_index].scaled(self.size(), aspectRatioMode=Qt.KeepAspectRatio)
         self.label.setPixmap(resized_pixmap)
         # 闲置定时器
         self.idle_timer = QTimer()
-        self.current_action = "idle"
-        self.frames = self.load_frames(frame_folder, "simei_idle")
-        self.idle_timer.timeout.connect(self.walk_update_frame)
-        # self.idle_timer.start(585)
-        self.idle_timer.start(250)
+        self.idle()
+        # self.current_action = "idle"
+        # self.frames = self.load_frames(frame_folder, "simei_idle")
+        # self.idle_timer.timeout.connect(self.walk_update_frame)
+        # # self.idle_timer.start(585)
+        # self.idle_timer.start(250)
 
     def initUI(self):
         self.petSize = 150
@@ -43,14 +46,20 @@ class PetApp(QWidget):
         # 定时器：切换动画帧
         self.animation_timer = QTimer()
         self.animation_timer.start(400)  # 每 100 毫秒切换一帧
-
         # 定时器：移动
         self.timer = QTimer()
         # self.timer.timeout.connect(self.animate)
         self.timer.start(50)
 
-
-
+        self.action_frames = {
+            "idle": "simei_idle",
+            "bling": "simei_bling",
+            "walk": "simei_walk-",
+            "flow": "simei_flow",
+            "sleepy": "simei_sleepy",
+            "write": "simei_write_",
+            "write-wink": "simei_write-wink"
+        }
 
         # 初始位置和移动方向
         self.start_x = 200
@@ -62,26 +71,23 @@ class PetApp(QWidget):
         self.mouse_drag_pos = QPoint()
 
     def idle(self):
-        # 先断开现有的信号连接
-        try:
-            self.animation_timer.timeout.disconnect()
-        except TypeError:
-            pass  # 忽略未连接信号的错误
-        self.timer.stop()
-        self.animation_timer.stop()
-        self.idle_timer.stop()
+        self.stop_timer()
+
         self.current_action = "idle"
-        self.frames = self.load_frames(frame_folder, "simei_idle")
+        self.frames = self.load_frames(frame_folder, self.action_frames[self.current_action])
         self.idle_timer.timeout.connect(self.update_frame)
-        self.idle_timer.start(100)
-        self.idle_timer.start(250)
+        self.idle_timer.start(150)
+        print(self.idle_count)
 
     def set_action(self, action_name, frame_prefix, interval, connection = None, play_count_limit = None):
+        # self.timer.stop()
+        # self.animation_timer.stop()
+        # self.idle_timer.stop()
         self.stop_timer()
+
         self.current_action = action_name
         self.frames = self.load_frames(frame_folder, frame_prefix)
-        self.current_frame_index = 0
-        self.play_count = 0
+        print(action_name, frame_prefix)
         self.animation_timer.timeout.connect(self.update_frame)
         self.animation_timer.start(interval)
 
@@ -90,6 +96,8 @@ class PetApp(QWidget):
         # 先断开现有的信号连接
         try:
             self.animation_timer.timeout.disconnect()
+            self.timer.timeout.disconnect()
+            self.idle_timer.timeout.disconnect()
         except TypeError:
             pass  # 忽略未连接信号的错误
         try:
@@ -98,47 +106,16 @@ class PetApp(QWidget):
             pass  # 忽略未连接信号的错误
         self.timer.stop()
         self.animation_timer.stop()
-
-    def bling(self):
-        # 先断开现有的信号连接
-        try:
-            self.animation_timer.timeout.disconnect()
-        except TypeError:
-            pass  # 忽略未连接信号的错误
-        self.timer.stop()
-        self.animation_timer.stop()
-        self.current_action = "bling"
-        self.frames = self.load_frames(frame_folder, "simei_bling")
-        self.animation_timer.timeout.connect(self.update_frame)
-        self.animation_timer.start(200)
+        self.idle_timer.stop()
+        self.current_frame_index = 0
 
     def walk(self):
-        # 先断开现有的信号连接
-        try:
-            self.timer.timeout.disconnect()
-        except TypeError:
-            pass  # 忽略未连接信号的错误
-
-        self.timer.stop()
-        self.animation_timer.stop()
+        self.stop_timer()
         self.timer.timeout.connect(self.animate)
         self.timer.start(50)
         self.current_action = "walk"
         self.frames = self.load_frames(frame_folder, "simei_walk-")
         self.animation_timer.timeout.connect(self.walk_update_frame)
-        self.animation_timer.start(200)
-
-    def flow(self):
-        # 先断开现有的信号连接
-        try:
-            self.animation_timer.timeout.disconnect()
-        except TypeError:
-            pass  # 忽略未连接信号的错误
-        self.timer.stop()
-        self.animation_timer.stop()
-        self.current_action = "flow"
-        self.frames = self.load_frames(frame_folder, "simei_flow")
-        self.animation_timer.timeout.connect(self.update_frame)
         self.animation_timer.start(200)
 
     def load_frames(self, frame_folder, action):
@@ -168,7 +145,7 @@ class PetApp(QWidget):
             # 设置图像大小，统一调整为合适的大小
             resized_pixmap = current_frame.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(resized_pixmap)
-
+# 计时器的魅力
     def update_frame(self):
         """
         切换到下一帧并更新宠物图像。
@@ -177,15 +154,34 @@ class PetApp(QWidget):
             self.current_frame_index = (self.current_frame_index + 1) % len(self.frames)
             current_frame = self.frames[self.current_frame_index]
             # 检测是否完成一轮播放
+            if self.current_action == "sleepy" and self.sleepy_count >= 4 and self.current_frame_index !=0:
+                self.sleepy_count = 0
+                self.set_action("write-wink", self.action_frames["write-wink"], 300)
+
             if self.current_frame_index == 0:
-                self.play_count += 1
-                if self.play_count >= 2:  # 播放达到最大次数时停止
+                if self.current_action == "bling":
+                    print(self.play_count)
+                    self.play_count += 1
+                if self.current_action == "idle":
+                    self.idle_count += 1
+                if self.current_action == "sleepy":
+                    print(self.sleepy_count)
+                    self.sleepy_count+=1
+
+                if self.play_count >= 4:  # 播放达到最大次数时停止
                     self.play_count = 0
-                    self.animation_timer.stop()
-                    #结束后进入闲置的状态
+                    self.stop_timer()
                     self.idle()
                     return
+                if self.idle_count >= 8:
+                    self.idle_count = 0
+                    self.set_action("sleepy", self.action_frames["sleepy"], 300)
+                if self.current_action == "sleepy" and self.sleepy_count >=4:
+                    self.sleepy_count = 0
+                    self.set_action("write-wink", self.action_frames["write-wink"], 300)
 
+
+                #结束后进入闲置的状态
             # 如果翻转状态为真，保持翻转状态
             if self.flipped:
                 transform = QTransform().scale(-1, 1)
@@ -193,7 +189,7 @@ class PetApp(QWidget):
             # 设置图像大小，统一调整为合适的大小
             resized_pixmap = current_frame.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(resized_pixmap)
-
+#### 散步时候冒星星，状态不取消，打瞌睡时候冒星星转瞬即逝9
     def animate(self):
         """
         让宠物水平移动并在边界时反转方向和图像。
@@ -232,6 +228,7 @@ class PetApp(QWidget):
         if event.button() == Qt.LeftButton:
             self.timer.stop()
             self.animation_timer.stop()
+            self.idle_timer.stop()
             self.drag_position = event.globalPos() - self.frameGeometry().topLeft()
             self.setCursor(Qt.ClosedHandCursor)  # 改变鼠标形状
             event.accept()
@@ -257,14 +254,26 @@ class PetApp(QWidget):
             self.move(event.globalPos() - self.drag_position)
             event.accept()
 
+    def mouseDoubleClickEvent(self, event):
+        """
+        捕获鼠标双击事件。
+        """
+        if self.current_action == "sleepy":  # 如果当前是睡眠状态
+            self.sleepy_count +=4
+            print("exist")
+
+
     def contextMenuEvent(self, event):
         menu = QMenu(self)
+        self.play_count = 0
         actions = {
             "退出": QApplication.quit,
-            "冒星星啦": lambda: self.set_action("bling", "simei_bling", 200, connection=self.idle, play_count_limit=2),
+            "冒星星啦":lambda: self.set_action("bling", "simei_bling", 200, connection=self.idle, play_count_limit=2),
             "散散步": lambda: self.walk(),
             "吹吹风": lambda: self.set_action("flow", "simei_flow", 200, connection=self.idle, play_count_limit=2),
             "打瞌睡": lambda: self.set_action("sleepy", "simei_sleepy", 300),
+            "学习": lambda: self.set_action("write", "simei_write_", 150),
+
         }
         for label, method in actions.items():
             menu.addAction(label).triggered.connect(method)
