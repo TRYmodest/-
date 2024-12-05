@@ -1,3 +1,4 @@
+import random
 import sys
 import os
 
@@ -5,15 +6,15 @@ import os
 from PyQt5.QtCore import Qt, QPoint, QTimer
 from PyQt5.QtGui import QPixmap, QTransform
 from PyQt5.QtWidgets import QWidget, QLabel, QApplication, QMenu
-from threading import Thread
-from Game.snake import start_game, SnakeGame
+import subprocess
 
-frame_folder = "D:/pythonGame/Photo/simeiAction/"  # 动画帧路径
+frame_folder = "D:\pythonGame\Photo\simeiAction"  # 动画帧路径
 
 
 class PetApp(QWidget):
     def __init__(self):
         super().__init__()
+        self.knifecount = 0
         self.sleepy_count = 0
         self.initUI()
         self.frames = self.load_frames(frame_folder, "simei_flush_0")  # 加载帧序列
@@ -61,7 +62,10 @@ class PetApp(QWidget):
             "flow": "simei_flow",
             "sleepy": "simei_sleepy",
             "write": "simei_write_",
-            "write-wink": "simei_write-wink"
+            "write-wink": "simei_write-wink",
+            "love": "simei_love",
+            "playknife": "simei_playknife",
+            "quxi": "simei_quxi"
         }
 
         # 初始位置和移动方向
@@ -84,10 +88,11 @@ class PetApp(QWidget):
 
     def launch_snake(self):
         # 创建线程，防止影响主界面
-        def run_game():
-            start_game()
-        game_thread = Thread(target = run_game)
-        game_thread.start()
+        # def run_game():
+        #     start_game()
+        # game_thread = Thread(target = run_game)
+        # game_thread.start()
+        subprocess.Popen(["python", "Game/snake.py"])
 
 
     def on_snake_game_over(self):
@@ -163,6 +168,10 @@ class PetApp(QWidget):
             # 设置图像大小，统一调整为合适的大小
             resized_pixmap = current_frame.scaled(self.size(), Qt.KeepAspectRatio, Qt.SmoothTransformation)
             self.label.setPixmap(resized_pixmap)
+
+    def setZero(self):
+        self.play_count = 0
+
 # 计时器的魅力
     def update_frame(self):
         """
@@ -174,17 +183,22 @@ class PetApp(QWidget):
             # 检测是否完成一轮播放
             if self.current_action == "sleepy" and self.sleepy_count >= 4 and self.current_frame_index !=0:
                 self.sleepy_count = 0
+                self.play_count = 0
                 self.set_action("write-wink", self.action_frames["write-wink"], 300)
 
             if self.current_frame_index == 0:
                 if self.current_action == "bling":
                     print(self.play_count)
                     self.play_count += 1
-                if self.current_action == "idle":
+                elif self.current_action == "idle":
                     self.idle_count += 1
-                if self.current_action == "sleepy":
+                    self.setZero()
+                elif self.current_action == "sleepy":
                     print(self.sleepy_count)
+                    self.setZero()
                     self.sleepy_count+=1
+                else:
+                    self.play_count += 1
 
                 if self.play_count >= 4:  # 播放达到最大次数时停止
                     self.play_count = 0
@@ -196,8 +210,12 @@ class PetApp(QWidget):
                     self.set_action("sleepy", self.action_frames["sleepy"], 300)
                 if self.current_action == "sleepy" and self.sleepy_count >=4:
                     self.sleepy_count = 0
+                    self.play_count = 0
                     self.set_action("write-wink", self.action_frames["write-wink"], 300)
-
+                if self.knifecount == 1:
+                    self.knifecount = 0
+                    self.play_count = 0
+                    self.set_action("playknife", self.action_frames["playknife"], 200)
 
                 #结束后进入闲置的状态
             # 如果翻转状态为真，保持翻转状态
@@ -214,11 +232,9 @@ class PetApp(QWidget):
         """
         current_pos = self.pos()
         next_x = current_pos.x() + self.direction * 5  # 每次移动 5 像素
-
         # 获取屏幕的宽度
         screen_geometry = QApplication.primaryScreen().geometry()
         screen_width = screen_geometry.width()
-
         # 检测是否碰到屏幕边界
         if next_x <= 0:
             self.direction = 1  # 改为向右
@@ -228,7 +244,6 @@ class PetApp(QWidget):
             self.direction = -1  # 改为向左
             if not self.flipped:
                 self.flip_image()  # 翻转图像
-
         # 更新宠物的位置
         self.move(next_x, current_pos.y())
 
@@ -259,6 +274,9 @@ class PetApp(QWidget):
             if self.current_action == "walk":
                 self.timer.start()
             self.animation_timer.start()
+            if self.current_action == "idle":
+                self.idle_count = 0
+                self.idle_timer.start()
             self.setCursor(Qt.ArrowCursor)  # 恢复默认鼠标形状
             event.accept()
 
@@ -277,8 +295,12 @@ class PetApp(QWidget):
         捕获鼠标双击事件。
         """
         if self.current_action == "sleepy":  # 如果当前是睡眠状态
-            self.sleepy_count +=4
-            print("exist")
+            if random.random() > 0.3:
+                self.sleepy_count += 4
+                print("exist")
+            else:
+                self.sleepy_count = 0
+                self.knifecount += 1
 
 
     def contextMenuEvent(self, event):
@@ -291,7 +313,9 @@ class PetApp(QWidget):
             "吹吹风": lambda: self.set_action("flow", "simei_flow", 200, connection=self.idle, play_count_limit=2),
             "打瞌睡": lambda: self.set_action("sleepy", "simei_sleepy", 300),
             "学习": lambda: self.set_action("write", "simei_write_", 150),
-            "一起来玩贪吃蛇": lambda: self.launch_snake()
+            "一起来玩贪吃蛇":lambda:(self.launch_snake(), self.set_action("bling", "simei_bling", 200)),
+            "爱你": lambda: self.set_action("love", self.action_frames["love"], 200),
+            "蹲下": lambda: self.set_action("quxi", self.action_frames["quxi"], 200)
         }
         for label, method in actions.items():
             menu.addAction(label).triggered.connect(method)

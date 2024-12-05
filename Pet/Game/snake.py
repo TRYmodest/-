@@ -59,7 +59,6 @@ class SnakeGame:
         if not self.inside() or self.inside_snake():
             self.gameOver()
             return
-
         clear()
         square(self.leftBound - 10, self.leftBound, 10 - 2 * self.leftBound, "blue")
         square(self.leftBound, self.leftBound + 10, -10 - 2 * self.leftBound, "white")
@@ -72,12 +71,11 @@ class SnakeGame:
 
         for segment in self.snake:
             square(segment[0], segment[1], 10, "black")
-
         ontimer(self.gameLoop, 100)
         update()
 
     def start(self):
-        setup(500, 500, 0, 0)
+        setup(500, 500, 400, 0)
         speed(10)
         hideturtle()
         tracer(False)
@@ -93,3 +91,6 @@ class SnakeGame:
 def start_game():
     game = SnakeGame()
     game.start()
+
+if __name__ =="__main__":
+    start_game()
